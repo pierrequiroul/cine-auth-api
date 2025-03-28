@@ -15,32 +15,17 @@ const generateCode = () => Math.floor(100000 + Math.random() * 900000).toString(
 
 // 1. Demander un code
 app.post('/auth/request-code', async (req, res) => {
-  const { email, username } = req.body;
+  let { email, username } = req.body;
   if (!email || !username) return res.status(400).json({ error: 'Champs manquants' });
 
+  email = email.toLowerCase();
+
   const code = generateCode();
-  const expires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+  const expires = new Date(Date.now() + 10 * 60 * 1000); // 10 min
 
-  // Vérifier si l'utilisateur existe
-  const { data: existingUser, error: fetchError } = await supabase
+  const { error } = await supabase
     .from('users')
-    .select('id')
-    .eq('email', email)
-    .single();
-
-  let error;
-  if (existingUser) {
-    // Mise à jour de l'utilisateur existant
-    ({ error } = await supabase
-      .from('users')
-      .update({ username, verification_code: code, code_expires_at: expires })
-      .eq('id', existingUser.id));
-  } else {
-    // Création d'un nouvel utilisateur
-    ({ error } = await supabase
-      .from('users')
-      .insert({ email, username, verification_code: code, code_expires_at: expires }));
-  }
+    .upsert({ email, username, verification_code: code, code_expires_at: expires });
 
   if (error) return res.status(500).json({ error: error.message });
 
@@ -57,8 +42,10 @@ app.post('/auth/request-code', async (req, res) => {
 
 // 2. Vérifier le code
 app.post('/auth/verify-code', async (req, res) => {
-  const { email, code } = req.body;
+  let { email, code } = req.body;
   if (!email || !code) return res.status(400).json({ error: 'Champs manquants' });
+
+  email = email.toLowerCase();
 
   const { data, error } = await supabase
     .from('users')
@@ -70,8 +57,6 @@ app.post('/auth/verify-code', async (req, res) => {
 
   if (!data || error) return res.status(401).json({ error: 'Code invalide ou expiré' });
 
-  const isNewUser = !data.last_login_at;
-
   await supabase
     .from('users')
     .update({
@@ -81,11 +66,7 @@ app.post('/auth/verify-code', async (req, res) => {
     })
     .eq('id', data.id);
 
-  return res.status(200).json({
-    token: data.id,
-    username: data.username,
-    isNewUser,
-  });
+  return res.status(200).json({ token: data.id, username: data.username, isNewUser: !data.last_login_at });
 });
 
 app.listen(3001, () => {

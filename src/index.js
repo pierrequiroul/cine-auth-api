@@ -27,9 +27,9 @@ app.post('/auth/request-code', async (req, res) => {
 
   if (error) return res.status(500).json({ error: error.message });
 
-  console.log(`📧 Code pour ${email} : ${code}`); // à remplacer par envoi d’email
+  console.log(`📧 Code pour ${email} : ${code}`);
   await resend.emails.send({
-    from: 'noreply@cinesocial.app', // à personnaliser
+    from: 'noreply@pierrelac.be',
     to: email,
     subject: 'Ton code de connexion CineSocial',
     html: `<p>Ton code est <strong>${code}</strong></p>`,

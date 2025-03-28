@@ -34,9 +34,10 @@ const verifyToken = (req, res, next) => {
 // 1. Demander un code
 app.post('/auth/request-code', async (req, res) => {
   let { email, username } = req.body;
-  if (!email || !username) return res.status(400).json({ error: 'Champs manquants' });
+  if (!email || !username) return res.status(400).json({ message: 'Champs manquants' });
 
   email = email.toLowerCase();
+  username = username.toLowerCase();
   const code = generateCode();
   const expires = new Date(Date.now() + 10 * 60 * 1000); // 10 min
 
@@ -44,7 +45,10 @@ app.post('/auth/request-code', async (req, res) => {
     .from('users')
     .upsert({ email, username, verification_code: code, code_expires_at: expires });
 
-  if (error) return res.status(500).json({ error: error.message });
+  if (error) {
+    console.error('Erreur Supabase (request-code) :', error.message);
+    return res.status(500).json({ message: error.message });
+  }
 
   console.log(`📧 Code pour ${email} : ${code}`);
   await resend.emails.send({

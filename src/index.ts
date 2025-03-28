@@ -56,6 +56,6 @@ app.post('/auth/verify-code', async (req: { body: { email: any; code: any; }; },
   return res.status(200).json({ token: data.id, username: data.username });
 });
 
-app.listen(3000, () => {
-  console.log('✅ CineSocial Auth API lancée sur http://localhost:3000');
+app.listen(3001, () => {
+  console.log('✅ CineSocial Auth API lancée sur http://localhost:3001');
 });

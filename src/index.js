@@ -2,6 +2,8 @@ const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const { supabase } = require('./supabaseClient');
+const { Resend } = require('resend');
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 dotenv.config();
 
@@ -26,6 +28,13 @@ app.post('/auth/request-code', async (req, res) => {
   if (error) return res.status(500).json({ error: error.message });
 
   console.log(`📧 Code pour ${email} : ${code}`); // à remplacer par envoi d’email
+  await resend.emails.send({
+    from: 'noreply@cinesocial.app', // à personnaliser
+    to: email,
+    subject: 'Ton code de connexion CineSocial',
+    html: `<p>Ton code est <strong>${code}</strong></p>`,
+  });
+  
   return res.status(200).json({ success: true });
 });
 

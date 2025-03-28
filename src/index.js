@@ -19,11 +19,28 @@ app.post('/auth/request-code', async (req, res) => {
   if (!email || !username) return res.status(400).json({ error: 'Champs manquants' });
 
   const code = generateCode();
-  const expires = new Date(Date.now() + 10 * 60 * 1000); // 10 min
+  const expires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-  const { error } = await supabase
+  // Vérifier si l'utilisateur existe
+  const { data: existingUser, error: fetchError } = await supabase
     .from('users')
-    .upsert({ email, username, verification_code: code, code_expires_at: expires });
+    .select('id')
+    .eq('email', email)
+    .single();
+
+  let error;
+  if (existingUser) {
+    // Mise à jour de l'utilisateur existant
+    ({ error } = await supabase
+      .from('users')
+      .update({ username, verification_code: code, code_expires_at: expires })
+      .eq('id', existingUser.id));
+  } else {
+    // Création d'un nouvel utilisateur
+    ({ error } = await supabase
+      .from('users')
+      .insert({ email, username, verification_code: code, code_expires_at: expires }));
+  }
 
   if (error) return res.status(500).json({ error: error.message });
 
@@ -34,7 +51,7 @@ app.post('/auth/request-code', async (req, res) => {
     subject: 'Ton code de connexion CineSocial',
     html: `<p>Ton code est <strong>${code}</strong></p>`,
   });
-  
+
   return res.status(200).json({ success: true });
 });
 
@@ -53,6 +70,8 @@ app.post('/auth/verify-code', async (req, res) => {
 
   if (!data || error) return res.status(401).json({ error: 'Code invalide ou expiré' });
 
+  const isNewUser = !data.last_login_at;
+
   await supabase
     .from('users')
     .update({
@@ -62,7 +81,11 @@ app.post('/auth/verify-code', async (req, res) => {
     })
     .eq('id', data.id);
 
-  return res.status(200).json({ token: data.id, username: data.username });
+  return res.status(200).json({
+    token: data.id,
+    username: data.username,
+    isNewUser,
+  });
 });
 
 app.listen(3001, () => {
